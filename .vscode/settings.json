@@ -1,0 +1,16 @@
+{
+    "cmake.sourceDirectory": "${workspaceFolder}/.",
+    "files.associations": {
+        "iostream": "cpp",
+        "stddef.h": "c",
+        "list.h": "c",
+        "kdev_t.h": "c",
+        "fs.h": "c",
+        "kernel.h": "c",
+        "linkage.h": "c",
+        "wait_bit.h": "c",
+        "cmath": "c",
+        "common.h": "c",
+        "dcache.h": "c"
+    }
+}
