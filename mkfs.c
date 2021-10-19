@@ -1,7 +1,7 @@
 /*
  * @Author: Corvo Attano(fkxzz001@qq.com)
  * @Description: make file system
- * @LastEditors: Corvo Attano(fkxzz001@qq.com)
+ * @LastEditors: Please set LastEditors
  */
 #include"common.h"
 #include<linux/fs.h>
@@ -9,13 +9,21 @@
 #include<sys/stat.h>
 #include<unistd.h>
 #include<math.h>
+#include<string.h>
 #include<sys/stat.h>
 #include<sys/ioctl.h>
 void showHelp(char *name)
 {
     printf("usage: %s disk.img\n",name);
 }
-void allocSuperblock(int fd,struct smfs_superBlock *sb,long int diskSize)
+/**
+ * @description: alloc the super block
+ * @param {int} fd -the disk image file
+ * @param {smfs_superBlock} *sb -pointer of super block info container
+ * @param {long int} diskSize -the size of disk image
+ * @return {*}
+ */
+int allocSuperblock(int fd,struct smfs_superBlock *sb,long int diskSize)
 {
     if(sb==NULL) return;
     const uint32_t k=(1<<15);//constant k,see README
@@ -36,8 +44,65 @@ void allocSuperblock(int fd,struct smfs_superBlock *sb,long int diskSize)
     int ret=write(fd,sb,sizeof(struct smfs_superBlock));
     if (ret !=sizeof(struct smfs_superBlock))
     {
-        
+        perror("write super block info error");
+        return 1;
     }
+    unsigned char *zeros;
+    int zeroSize=sizeof(char)*SMFS_BLOCK_SIZE-sizeof(struct smfs_superBlock);
+    zeros=(unsigned char*)malloc(zeroSize);//alloc the rest of the block in padding
+    ret=write(fd,zeros,zeroSize);
+    if (ret != zeroSize)
+    {
+        perror("write super block payload error");
+        free(zeros);
+        return 1;
+    }
+    free(zeros);
+    return 0;
+}
+/**
+ * @description: alloc all inode blocks in disk, the fist inode(inode 0) is reserved
+ * @param {int} fd -the disk image file 
+ * @param {int} inodeBlockcnt -the count of inode blocks
+ * @return {int} -0 if success
+ */
+int allocInodeblock(int fd,int inodeBlockcnt)
+{
+    struct smfs_inode inodeZero;
+    inodeZero.iAtime=inodeZero.iCtime=inodeZero.iMtime=0;
+    inodeZero.iBlocknum=1;
+    inodeZero.iGid=inodeZero.iUid=0;
+    inodeZero.iSize=SMFS_BLOCK_SIZE;
+    inodeZero.iMode=S_IFDIR | S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR | S_IWGRP | S_IXUSR | S_IXGRP | S_IXOTH;
+    memset(inodeZero.pFlieblockptr,0,sizeof(inodeZero.pFlieblockptr));//the fist data block is reserved too
+    int ret=write(fd,inodeZero,sizeof(struct smfs_inode));
+    if(ret != sizeof(struct smfs_inode))
+    {
+        perror("write inode 0 error");
+        return 1;
+    }
+    unsigned char *zeros;
+    int zeroSize=sizeof(char)*SMFS_BLOCK_SIZE-sizeof(struct smfs_superBlock);
+    zeros=(unsigned char*)malloc(zeroSize);//alloc the rest of the block in padding
+    ret=write(fd,zeros,zeroSize);
+    if (ret != zeroSize)
+    {
+        perror("write inode 0 payload error");
+        free(zeros);
+        return 1;
+    }
+    free(zeros);
+    return 0;
+}
+/**
+ * @description: 
+ * @param {int} fd
+ * @param {smfs_superBlock} *sb
+ * @return {*}
+ */
+int allocBitmap(int fd,struct smfs_superBlock *sb)
+{
+    
 }
 int main(int argc, char **argv)
 {
@@ -82,7 +147,11 @@ int main(int argc, char **argv)
         close(fd);
         return 1;
     }
-    allocSuperblock(fd,sb,diskSize);
+    if(allocSuperblock(fd,sb,diskSize))
+    {
+        close(fd);
+        return 1;
+    }
     return 0;
 }
 

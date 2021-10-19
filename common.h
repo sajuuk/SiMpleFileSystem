@@ -1,7 +1,7 @@
 /*
  * @Author: Corvo Attano(fkxzz001@qq.com)
  * @Description: 
- * @LastEditors: Corvo Attano(fkxzz001@qq.com)
+ * @LastEditors: Please set LastEditors
  */
 #ifndef SMFS_COMMON_H
 #define SMFS_COMMON_H
@@ -9,19 +9,19 @@
 #include<stdio.h>
 
 
-const uint32_t SMFS_BLOCK_SIZE=(1<<12);
-const uint32_t SMFS_INODE_SIZE=128;
-const uint32_t SMFS_INODE_DATA_SEC=96;
+#define SMFS_BLOCK_SIZE (1<<12)
+#define SMFS_INODE_SIZE 128
+#define SMFS_INODE_DATA_SEC 24
 //the size of inode's data section, 
 //data section store the list of pointers of file data block 
 //or the pointer of directory block
-const uint32_t SMFS_MAX_FILE_SIZE=96/4*SMFS_BLOCK_SIZE;//at most 96KiB
-const uint32_t SMFS_INODE_PER_BLOCK=SMFS_BLOCK_SIZE/SMFS_INODE_SIZE;
+#define SMFS_MAX_FILE_SIZE (24*SMFS_BLOCK_SIZE)//at most 96KiB
+#define SMFS_INODE_PER_BLOCK (SMFS_BLOCK_SIZE/SMFS_INODE_SIZE)
 
-const uint32_t SMFS_MAX_FILENAME_LEN=28;
-const uint32_t SMFS_MAX_DIR_MEM=128;
-const uint32_t SMFS_DATA_BLOCK_SIZE=4096;
-const uint32_t SMFS_MAGIC=0xE7266LL;
+#define SMFS_MAX_FILENAME_LEN 28
+#define SMFS_MAX_DIR_MEM 128
+#define SMFS_DATA_BLOCK_SIZE 4096
+#define SMFS_MAGIC 0xE7266LL
 
 struct smfs_inode
 {
@@ -35,7 +35,7 @@ struct smfs_inode
     uint32_t iBlocknum;//number of blocks
     union
     {
-        uint32_t pFlieblockptr[SMFS_BLOCK_SIZE];
+        uint32_t pFlieblockptr[SMFS_INODE_DATA_SEC];
         uint32_t pDirblockptr;
     };
 };
