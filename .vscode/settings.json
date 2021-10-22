@@ -18,6 +18,7 @@
         "stdio.h": "c",
         "cache.h": "c",
         "bitmap.h": "c",
-        "statfs.h": "c"
+        "statfs.h": "c",
+        "unistd.h": "c"
     }
 }

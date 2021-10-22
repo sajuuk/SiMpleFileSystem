@@ -4,6 +4,10 @@
  * @LastEditors: Please set LastEditors
  */
 #include"common.h"
+#include<fcntl.h>
+#include<stdint.h>
+#include<stdio.h>
+#include<stdlib.h>
 #include<linux/fs.h>
 #include<linux/kernel.h>
 #include<sys/stat.h>
@@ -31,7 +35,7 @@ int allocSuperblock(int fd,struct smfs_superBlock *sb,long int diskSize)
     uint32_t blockNum=diskSize/SMFS_BLOCK_SIZE;
     double t=(double)(blockNum-1)*k/(64+33*k);
     uint32_t inodeBlocknum=(uint32_t)floor(t);
-    double t=(double)inodeBlocknum*32/k;
+    t=(double)inodeBlocknum*32/k;
     uint32_t bitmapBlocknum=(uint32_t)ceil(t);
     sb->iMagic=SMFS_MAGIC;
     sb->iBlocknum=blockNum;
@@ -75,7 +79,7 @@ int allocInodeblock(int fd,int inodeBlockcnt)
     inodeZero.iSize=SMFS_BLOCK_SIZE;
     inodeZero.iMode=S_IFDIR | S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR | S_IWGRP | S_IXUSR | S_IXGRP | S_IXOTH;
     memset(inodeZero.pFlieblockptr,0,sizeof(inodeZero.pFlieblockptr));//the fist data block is reserved too
-    int ret=write(fd,inodeZero,sizeof(struct smfs_inode));
+    int ret=write(fd,&inodeZero,sizeof(struct smfs_inode));
     if(ret != sizeof(struct smfs_inode))
     {
         perror("write inode 0 error");
