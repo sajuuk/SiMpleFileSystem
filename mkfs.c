@@ -150,6 +150,7 @@ int allocBitmap(int fd,struct smfs_superBlock *sb)
 int main(int argc, char **argv)
 {
     long int minSize=SMFS_BLOCK_SIZE*10;
+    long int diskSize = 0;
     if(argc !=2)
     {
         perror("error");
@@ -170,7 +171,6 @@ int main(int argc, char **argv)
         return 1;
     }
     if ((statBuf.st_mode & S_IFMT) == S_IFBLK) {
-        long int diskSize = 0;
         if (ioctl(fd, BLKGETSIZE64, &diskSize) != 0) {
             perror("cant get disk size");
             close(fd);
