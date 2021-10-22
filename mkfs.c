@@ -29,7 +29,7 @@ void showHelp(char *name)
  */
 int allocSuperblock(int fd,struct smfs_superBlock *sb,long int diskSize)
 {
-    if(sb==NULL) return;
+    if(sb==NULL) return 1;
     const uint32_t k=(1<<15);//constant k,see README
 
     uint32_t blockNum=diskSize/SMFS_BLOCK_SIZE;
