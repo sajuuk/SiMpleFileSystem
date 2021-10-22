@@ -17,6 +17,7 @@
         "module.h": "c",
         "stdio.h": "c",
         "cache.h": "c",
-        "bitmap.h": "c"
+        "bitmap.h": "c",
+        "statfs.h": "c"
     }
 }
