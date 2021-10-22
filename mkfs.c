@@ -40,7 +40,7 @@ int allocSuperblock(int fd,struct smfs_superBlock *sb,long int diskSize)
     sb->iInodebitmapblocks=bitmapBlocknum;
     sb->iDatabitmapblocks=bitmapBlocknum;
     sb->iInodefree=sb->iInodenum-1;//inode 0 is reserved
-    sb->iDatafree=blockNum-1-inodeBlocknum-bitmapBlocknum-bitmapBlocknum;
+    sb->iDatablocks = sb->iDatafree = blockNum-1-inodeBlocknum-bitmapBlocknum-bitmapBlocknum;
     int ret=write(fd,sb,sizeof(struct smfs_superBlock));
     if (ret !=sizeof(struct smfs_superBlock))
     {
@@ -82,7 +82,7 @@ int allocInodeblock(int fd,int inodeBlockcnt)
         return 1;
     }
     unsigned char *zeros;
-    int zeroSize=sizeof(char)*SMFS_BLOCK_SIZE-sizeof(struct smfs_superBlock);
+    int zeroSize=sizeof(char)*SMFS_BLOCK_SIZE-sizeof(struct smfs_inode);
     zeros=(unsigned char*)malloc(zeroSize);//alloc the rest of the block in padding
     ret=write(fd,zeros,zeroSize);
     if (ret != zeroSize)
@@ -92,17 +92,56 @@ int allocInodeblock(int fd,int inodeBlockcnt)
         return 1;
     }
     free(zeros);
+    unsigned char *padding;
+    padding=(unsigned char*)malloc(SMFS_BLOCK_SIZE);
+    for(int i=1;i<inodeBlockcnt;i++)
+    {
+        ret=write(fd,padding,SMFS_BLOCK_SIZE);
+        if(ret != SMFS_BLOCK_SIZE)
+        {
+            perror("write inodes padding error");
+            free(padding);
+            return 1;
+        }
+    }
+    free(padding);
     return 0;
 }
 /**
- * @description: 
- * @param {int} fd
- * @param {smfs_superBlock} *sb
+ * @description: alloc inode bitmap and data block bitmap, return 0 if success
+ * @param {int} fd -disk image
+ * @param {smfs_superBlock} *sb -super block pointer
  * @return {*}
  */
 int allocBitmap(int fd,struct smfs_superBlock *sb)
 {
-    
+    uint32_t bitMapblocknum = sb->iInodebitmapblocks;
+    unsigned char* inodeBitmap=(unsigned char*)malloc(bitMapblocknum*SMFS_BLOCK_SIZE);//for inode bit map
+    memset(inodeBitmap,255,sizeof(inodeBitmap));
+    inodeBitmap[0]=254;//inode 0 reserved
+    long offset=1+sb->iInodestoreblocks;
+    lseek(fd,offset,0);
+    int ret=write(fd,inodeBitmap,sizeof(inodeBitmap));
+    if (ret != sizeof(inodeBitmap))
+    {
+        perror("write inode bitmap error");
+        free(inodeBitmap);
+        return 1;
+    }
+    free(inodeBitmap);
+    bitMapblocknum=sb->iDatabitmapblocks;
+    unsigned char* dataBitmap=(unsigned char*)malloc(bitMapblocknum*SMFS_BLOCK_SIZE);//for data bit map
+    memset(dataBitmap,255,sizeof(dataBitmap));
+    dataBitmap[0]=254;//data block 0 reserved
+    ret=write(fd,dataBitmap,sizeof(dataBitmap));
+    if(ret != sizeof(dataBitmap))
+    {
+        perror("write data block bitmap error");
+        free(dataBitmap);
+        return 1;
+    }
+    return 0;
+
 }
 int main(int argc, char **argv)
 {
@@ -145,11 +184,25 @@ int main(int argc, char **argv)
     {
         perror("memory alloc error");
         close(fd);
+        free(sb);
         return 1;
     }
     if(allocSuperblock(fd,sb,diskSize))
     {
         close(fd);
+        free(sb);
+        return 1;
+    }
+    if(allocInodeblock(fd,sb->iInodestoreblocks))
+    {
+        close(fd);
+        free(sb);
+        return 1;
+    }
+    if(allocBitmap(fd,sb))
+    {
+        close(fd);
+        free(sb);
         return 1;
     }
     return 0;

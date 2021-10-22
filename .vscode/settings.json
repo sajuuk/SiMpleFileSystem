@@ -11,6 +11,12 @@
         "wait_bit.h": "c",
         "cmath": "c",
         "common.h": "c",
-        "dcache.h": "c"
+        "dcache.h": "c",
+        "stat.h": "c",
+        "buffer_head.h": "c",
+        "module.h": "c",
+        "stdio.h": "c",
+        "cache.h": "c",
+        "bitmap.h": "c"
     }
 }

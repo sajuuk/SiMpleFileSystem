@@ -1,6 +1,6 @@
 /*
  * @Author: Corvo Attano(fkxzz001@qq.com)
- * @Description: 
+ * @Description: common for project
  * @LastEditors: Please set LastEditors
  */
 #ifndef SMFS_COMMON_H
@@ -21,7 +21,7 @@
 #define SMFS_MAX_FILENAME_LEN 28
 #define SMFS_MAX_DIR_MEM 128
 #define SMFS_DATA_BLOCK_SIZE 4096
-#define SMFS_MAGIC 0xE7266LL
+#define SMFS_MAGIC 67176176
 
 struct smfs_inode
 {
@@ -39,11 +39,25 @@ struct smfs_inode
         uint32_t pDirblockptr;
     };
 };
+#ifdef __KERNEL__
+    //in memory
+struct smfs_inode_kernel
+{
+    union
+    {
+        uint32_t pFlieblockptr[SMFS_INODE_DATA_SEC];
+        uint32_t pDirblockptr;
+    };
+    struct inode vfs_inode;
+}
+#endif
+
 struct smfs_superBlock
 {
     uint32_t iMagic;
     uint32_t iBlocknum;//number of blocks in disk
     uint32_t iInodenum;//number of inodes in disk
+    uint32_t iDatablocks;//number of blocks to store data
     uint32_t iInodestoreblocks;//number of blocks to store inodes
     uint32_t iInodebitmapblocks;//number of blocks to store inode bitmap
     uint32_t iDatabitmapblocks;//number of blocks to store data bitmap
@@ -69,5 +83,10 @@ struct smfs_dataBlock
 {
     unsigned char [SMFS_DATA_BLOCK_SIZE];
 };
+// file functions
+extern const struct file_operations smfsFileops;
+extern const struct file_operations smfsDirops;
+extern const struct address_space_operations smfsAops;
+#define SMFS_INODE(inode) (container_of(inode, struct smfs_inode_kernel, vfs_inode))
 #endif
 #endif
