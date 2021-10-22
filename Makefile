@@ -10,7 +10,7 @@ all: $(MKFS)
 
 
 $(MKFS): mkfs.c
-	$(CC) -std=gnu99 -Wall -o $@ $<
+	$(CC) -std=gnu99 -Wall -o $@ $< -lm
 
 
 clean:
