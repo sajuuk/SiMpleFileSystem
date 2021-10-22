@@ -40,7 +40,7 @@ int allocSuperblock(int fd,struct smfs_superBlock *sb,long int diskSize)
     sb->iInodebitmapblocks=bitmapBlocknum;
     sb->iDatabitmapblocks=bitmapBlocknum;
     sb->iInodefree=sb->iInodenum-1;//inode 0 is reserved
-    sb->iDatablocks = sb->iDatafree = blockNum-1-inodeBlocknum-bitmapBlocknum-bitmapBlocknum;
+    sb->iDatablocks = sb->iDatafree = blockNum-1-inodeBlocknum-bitmapBlocknum-bitmapBlocknum-1;//data block 0 reserved
     int ret=write(fd,sb,sizeof(struct smfs_superBlock));
     if (ret !=sizeof(struct smfs_superBlock))
     {

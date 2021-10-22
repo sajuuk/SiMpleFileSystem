@@ -1,7 +1,7 @@
 /*
  * @Author: Corvo Attano(fkxzz001@qq.com)
  * @Description: 
- * @LastEditors: Corvo Attano(fkxzz001@qq.com)
+ * @LastEditors: Please set LastEditors
  */
 #include"common.h"
 #include<linux/buffer_head.h>
@@ -122,7 +122,18 @@ int smfs_sync_fs(struct super_block *sb,int wait)
 }
 int smfs_statfs(struct dentry *dentry,struct kstatfs *stat)
 {
-    
+    struct super_block *sb=dentry->d_sb;
+    struct smfs_superBlock *smfsSb=sb->s_fs_info;
+
+    stat->f_type = SMFS_MAGIC;
+    stat->f_bsize = SMFS_BLOCK_SIZE;
+    stat->f_blocks = smfsSb->iBlocknum;
+    stat->f_bfree = smfsSb->iDatafree;
+    stat->f_bavail = smfsSb->iDatafree;
+    stat->f_files = smfsSb->iInodenum-smfsSb->iInodefree;
+    stat->f_ffree = smfsSb->iInodefree;
+    stat->f_namelen = SMFS_MAX_FILENAME_LEN;
+    return 0;
 }
 static struct super_operations simplefs_super_ops = {
     .put_super = smfs_put_super,
@@ -130,5 +141,5 @@ static struct super_operations simplefs_super_ops = {
     .destroy_inode = smfs_destroy_inode,
     .write_inode = smfs_write_inode,
     .sync_fs = smfs_sync_fs,
-    .statfs = simplefs_statfs,
+    .statfs = smfs_statfs,
 };

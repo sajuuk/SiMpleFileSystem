@@ -1,7 +1,7 @@
 /*
  * @Author: Corvo Attano(fkxzz001@qq.com)
  * @Description: common for project
- * @LastEditors: Corvo Attano(fkxzz001@qq.com)
+ * @LastEditors: Please set LastEditors
  */
 #ifndef SMFS_COMMON_H
 #define SMFS_COMMON_H
@@ -87,6 +87,7 @@ struct smfs_dataBlock
 extern const struct file_operations smfsFileops;
 extern const struct file_operations smfsDirops;
 extern const struct address_space_operations smfsAops;
+extern const struct kmem_cache *smfs_inode_cache;
 #define SMFS_INODE(inode) (container_of(inode, struct smfs_inode_kernel, vfs_inode))
 #endif
 #endif
