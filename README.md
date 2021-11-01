@@ -163,7 +163,34 @@ begin
     check is the dir empty
     get the parent dir's data block
     find the dir's location in its parent data block
-    
+    delete this dentry and rearrange data block
+    mark this dir's inode, its parent inode, and data block dirty
+    set the bitmap unuesd
 end
 ```
+## Bitmap Operations
+* _setBitmap
+```
+begin
+    set byte mask
+    targetByte = targetByte &(|) bytemask
+end
+```
+* _findFirstfree
+```
+begin
+    foreach byte in bitmap do
+        if byte!=0
+            mask=1
+            while mask & byte == 0 do
+                mask=mask<<1
+            od
+            return this byte's offset
+        fi
+    od
+end      
+```
+## Dir Operations
+
+
 
