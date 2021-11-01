@@ -1,7 +1,7 @@
 /*
  * @Author: Corvo Attano(fkxzz001@qq.com)
  * @Description: make file system
- * @LastEditors: Please set LastEditors
+ * @LastEditors: Corvo Attano(fkxzz001@qq.com)
  */
 #include"common.h"
 #include<fcntl.h>

@@ -1,12 +1,10 @@
 /*
  * @Author: Corvo Attano(fkxzz001@qq.com)
  * @Description: common for project
- * @LastEditors: Please set LastEditors
+ * @LastEditors: Corvo Attano(fkxzz001@qq.com)
  */
 #ifndef SMFS_COMMON_H
 #define SMFS_COMMON_H
-#include<stdint.h>
-#include<stdio.h>
 
 
 #define SMFS_BLOCK_SIZE (1<<12)

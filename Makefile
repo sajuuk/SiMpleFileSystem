@@ -1,4 +1,4 @@
-obj-m += smfs.o
+obj-m += SiMpleFileSystem.o
 SiMpleFileSystem-objs := fs.o super.o inode.o
 
 KDIR ?= /lib/modules/$(shell uname -r)/build
