@@ -5,7 +5,7 @@
  */
 #ifndef SMFS_COMMON_H
 #define SMFS_COMMON_H
-
+//#define __KERNEL__ 1 // to enable intellisense
 
 #define SMFS_BLOCK_SIZE (1<<12)
 #define SMFS_INODE_SIZE 128
@@ -13,14 +13,14 @@
 //the size of inode's data section, 
 //data section store the list of pointers of file data block 
 //or the pointer of directory block
-#define SMFS_MAX_FILE_SIZE (24*SMFS_BLOCK_SIZE)//at most 96KiB
+//#define SMFS_MAX_FILE_SIZE (24*SMFS_BLOCK_SIZE)
 #define SMFS_INODE_PER_BLOCK (SMFS_BLOCK_SIZE/SMFS_INODE_SIZE)
 
 #define SMFS_MAX_FILENAME_LEN 28
 #define SMFS_MAX_DIR_MEM 128
 #define SMFS_DATA_BLOCK_SIZE 4096
+#define SMFS_MAX_FILE_SIZE (SMFS_BLOCK_SIZE*SMFS_INODE_DATA_SEC)//at most 96KiB
 #define SMFS_MAGIC 67176176
-
 struct smfs_inode
 {
     uint32_t iMode;
@@ -47,7 +47,7 @@ struct smfs_inode_kernel
         uint32_t pDirblockptr;
     };
     struct inode vfs_inode;
-}
+};
 #endif
 
 struct smfs_superBlock
@@ -63,8 +63,8 @@ struct smfs_superBlock
     uint32_t iDatafree;//number of free data blocks
 #ifdef __KERNEL__
     //in memory
-    unsigned long *pInodebitmap;
-    unsigned long *pDatabitmap;
+    unsigned char *pInodebitmap;
+    unsigned char *pDatabitmap;
 #endif
 };
 #ifdef __KERNEL__
@@ -79,13 +79,18 @@ struct smfs_dirBlock
 };
 struct smfs_dataBlock
 {
-    unsigned char [SMFS_DATA_BLOCK_SIZE];
+    unsigned char data[SMFS_DATA_BLOCK_SIZE];
 };
+//super block functions
+int smfs_fill_super(struct super_block *sb, void *data, int silent);
+//inode functions
+int smfs_init_inode_cache(void);
+void smfs_destroy_inode_cache(void);
+struct inode *_getInode(struct super_block *sb,unsigned long index);
 // file functions
 extern const struct file_operations smfsFileops;
 extern const struct file_operations smfsDirops;
 extern const struct address_space_operations smfsAops;
-extern const struct kmem_cache *smfs_inode_cache;
 #define SMFS_INODE(inode) (container_of(inode, struct smfs_inode_kernel, vfs_inode))
 #endif
 #endif

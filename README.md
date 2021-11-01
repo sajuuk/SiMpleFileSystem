@@ -8,6 +8,31 @@
 whole project has 2 parts, the implement of SiMpleFileSystem and a disk formater.  
 SiMpleFileSystem is a file system based on POSIX standard, can be installed as a module in Linux.  
 disk formater can format a disk image, which can be managed by SiMpleFileSystem.  
+### Current features
+* Dir: create,remove,list
+* file: create,read,write
+### How to use
+* install the linux headers
+```shell
+sudo apt-get install linux-headers-$(uname -r)
+```
+* create a directory and a disk image file
+```shell
+mkdir -p test
+dd if=/dev/zero of=test.img bs=1M count=10
+```
+* build project
+```shell
+make
+```
+* install module, format disk image and mount file system
+```shell
+sudo ./setall.sh
+```
+* if you want to unmount file system and remove module installed
+```shell
+sudo ./undoall.sh
+```
 ## Data Structure  
 | section | size(KiB) |
 | ----|----|

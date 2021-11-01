@@ -1,2 +1,10 @@
 /build
 /bin
+*.cmd
+*.o
+*.symvers
+*.ko
+*.mod
+*.img
+*.order
+*.mod.c

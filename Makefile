@@ -1,16 +1,16 @@
 obj-m += SiMpleFileSystem.o
-SiMpleFileSystem-objs := fs.o super.o inode.o
+SiMpleFileSystem-objs := fs.o superOps.o inodeOps.o fileOps.o dirOps.o 
 
 KDIR ?= /lib/modules/$(shell uname -r)/build
 
-MKFS = mkfs.simplefs
+MKFS = mkfs
 
 all: $(MKFS)
 	make -C $(KDIR) M=$(shell pwd) modules
 
 
 $(MKFS): mkfs.c
-	$(CC) -std=gnu99 -Wall -o $@ $< -lm
+	$(CC) -std=gnu99 -Wall -o $@ $< -lm -g
 
 
 clean:

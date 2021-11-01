@@ -1,18 +1,20 @@
 /*
  * @Author:Corvo Attano(391063482@qq.com)
  * @Date: 2021-10-20 10:49:22
- * @LastEditTime: 2021-10-22 10:46:46
+ * @LastEditTime: 2021-11-01 10:09:21
  * @LastEditors: Corvo Attano(fkxzz001@qq.com)
  * @Description: inode_operations implement
  * @FilePath: \SiMpleFileSystem\inode.c
  */
-#include"common.h"
-#include<string.h>
+
+//#include<string.h>
 #include<linux/fs.h>
 #include<linux/kernel.h>
 #include<linux/buffer_head.h>
 #include<linux/module.h>
+#include<linux/printk.h>
 #include"bitmap.h"
+#include"common.h"
 static const struct inode_operations smfsInodeops;
 /**
  * @description: get a vfs inode from cache,if have't cached yet, call the page cache to read related block data and update the cache
@@ -20,7 +22,7 @@ static const struct inode_operations smfsInodeops;
  * @param {unsigned long} index
  * @return {*}
  */
-struct inode*_getInode(struct super_block *sb,unsigned long index)
+struct inode *_getInode(struct super_block *sb,unsigned long index)
 {
     struct inode *inode=NULL;
     struct smfs_inode *smfsInode=NULL;
@@ -50,10 +52,10 @@ struct inode*_getInode(struct super_block *sb,unsigned long index)
     if(bh==NULL)
     {
         brelse(bh);
-        iget_failed(inode)
+        iget_failed(inode);
         return ERR_PTR(-EIO);
     }
-    smfsInode=bh->b_data+offset;
+    smfsInode=((struct smfs_inode*)bh->b_data)+offset;
 
     //set up the vfs inode
     inode->i_ino = index;
@@ -75,7 +77,7 @@ struct inode*_getInode(struct super_block *sb,unsigned long index)
         smfsInodekernel->pDirblockptr=smfsInode->pDirblockptr;
         inode->i_fop=&smfsDirops;
     }
-    else if(S_ISREG(inode->imode))// is file
+    else if(S_ISREG(inode->i_mode))// is file
     {
         memcpy(smfsInodekernel->pFlieblockptr,smfsInode->pFlieblockptr,SMFS_INODE_DATA_SEC);
         inode->i_fop=&smfsFileops;
@@ -85,6 +87,12 @@ struct inode*_getInode(struct super_block *sb,unsigned long index)
     unlock_new_inode(inode);
     return inode;
 }
+/**
+ * @description: create a new inode of file or dir,new dir with a whole data block while new file has no data block. 
+ * @param {inode} *dir
+ * @param {mode_t} mode
+ * @return {*}
+ */
 struct inode* _newInode(struct inode *dir,mode_t mode)
 {
     struct super_block *sb=NULL;
@@ -103,6 +111,7 @@ struct inode* _newInode(struct inode *dir,mode_t mode)
         return ERR_PTR(-ENOSPC);
     }
     inodeIndex=getFreeinode(smfsSb);
+    printk("_newInode inodeIndex %u",inodeIndex);
     if(inodeIndex==0)
     {
         return ERR_PTR(-ENOSPC);
@@ -110,40 +119,43 @@ struct inode* _newInode(struct inode *dir,mode_t mode)
     inode=_getInode(sb,inodeIndex);//create a new inode in memory
     if(IS_ERR(inode))
     {
-        releaseInode(sb,inodeIndex);//release the bitmap
+        printk("_newInode inode err");
+        releaseInode(smfsSb,inodeIndex);//release the bitmap
         return  ERR_PTR(inode);
     }
     
     smfsInodekernel=SMFS_INODE(inode);
     inode_init_owner(inode,dir,mode);
     if(S_ISDIR(mode))
-    {   
+    {
         blockIndex=getFreedata(smfsSb);
+        printk("_newInode blockIndex: %u",blockIndex);
         if(blockIndex==0)
         {
             iput(inode);
-            releaseInode(sb,inodeIndex);
+            releaseInode(smfsSb,inodeIndex);
             return ERR_PTR(-ENOSPC);
         }
         inode->i_blocks=1;
         inode->i_size=SMFS_BLOCK_SIZE;
-        inode->i_fop=&smfsInodeops;
+        inode->i_fop=&smfsDirops;
         //set_nlink(inode, 2); not sure is it necessary
-        smfsInodekernel->pDirblockptr=blockIndex;
+        smfsInodekernel->pDirblockptr=1 + smfsSb->iInodestoreblocks + smfsSb->iInodebitmapblocks + smfsSb->iDatabitmapblocks + blockIndex;
     }
     else if(S_ISREG(mode))
     {
         inode->i_blocks=0;
         inode->i_size=0;
-        inode->i_fop=&smfsInodeops;
+        inode->i_fop=&smfsFileops;
         inode->i_mapping->a_ops=&smfsAops;
         memset(smfsInodekernel->pFlieblockptr,0,sizeof(smfsInodekernel->pFlieblockptr));
     }
     inode->i_ctime = inode->i_atime = inode->i_mtime = current_time(inode);
+    printk("_newInode return");
     return inode;
 }
 /**
- * @description: 
+ * @description: lookup the dir or file by name, if found append to dentry
  * @param {inode} *
  * @param {dentry} *
  * @param {unsigned} int
@@ -158,7 +170,7 @@ struct dentry *smfs_lookup(struct inode *dir, struct dentry *dentry, unsigned in
     struct smfs_dirMem *dmem=NULL;
     struct inode *inode=NULL;
     int found=0;
-    if(dentry->d_name>SMFS_MAX_FILENAME_LEN)//check the file name
+    if(dentry->d_name.len > SMFS_MAX_FILENAME_LEN)//check the file name
     {
         return ERR_PTR(-ENAMETOOLONG);
     }
@@ -167,16 +179,16 @@ struct dentry *smfs_lookup(struct inode *dir, struct dentry *dentry, unsigned in
     {
         return ERR_PTR(-EIO);
     }
-    dblock=bh->b_data;
+    dblock=(struct smfs_dirBlock*)bh->b_data;
     int i;
-    for(int i=0;i<SMFS_MAX_DIR_MEM;i++)//find the file/dir
+    for(i=0;i<SMFS_MAX_DIR_MEM;i++)//find the file/dir
     {
-        dmem=dblock->fileList[i];
+        dmem=&(dblock->fileList[i]);
         if(dmem->iInode==0)
         {
             break;
         }
-        if(strncmp(dmem->fileName,dentry->d_name,SMFS_MAX_FILENAME_LEN)==0)
+        if(strncmp(dmem->fileName,dentry->d_name.name,SMFS_MAX_FILENAME_LEN)==0)
         {
             inode=_getInode(sb,dmem->iInode);
             found=1;
@@ -192,10 +204,18 @@ struct dentry *smfs_lookup(struct inode *dir, struct dentry *dentry, unsigned in
     }
     else
     {
-        d_add(NULL);
+        d_add(dentry,NULL);
     }
     return NULL;
 }
+/**
+ * @description: create dir or file, if dir, clean the data block (files dont need to)
+ * @param {inode} *dir
+ * @param {dentry} *dentry
+ * @param {umode_t} mode
+ * @param {bool} excl
+ * @return {*}
+ */
 int smfs_create(struct inode *dir,struct dentry *dentry,umode_t mode,bool excl)
 {
     struct super_block *sb;
@@ -214,7 +234,7 @@ int smfs_create(struct inode *dir,struct dentry *dentry,umode_t mode,bool excl)
     sb=dir->i_sb;
     bhParent=sb_bread(sb,smfsDir->pDirblockptr);
     if(bhParent==NULL) return -EIO;
-    parentDirdata=(smfs_dirBlock*)bhParent->b_data;
+    parentDirdata=(struct smfs_dirBlock *)(bhParent->b_data);
     //check if there have free space
     if(parentDirdata->fileList[SMFS_MAX_DIR_MEM-1].iInode)
     {
@@ -234,8 +254,9 @@ int smfs_create(struct inode *dir,struct dentry *dentry,umode_t mode,bool excl)
         bh=sb_bread(sb,smfsInode->pDirblockptr);
         if(bh==NULL)
         {
-            releaseData(sb,smfsInode->pDirblockptr);
-            releaseInode(sb,inode->i_ino);
+            struct smfs_superBlock *smfsSb=sb->s_fs_info;
+            releaseData(sb->s_fs_info,smfsInode->pDirblockptr - 1 - smfsSb->iInodestoreblocks - smfsSb->iInodebitmapblocks);
+            releaseInode(sb->s_fs_info,inode->i_ino);
             iput(inode);
             brelse(bhParent);
             return -EIO;
@@ -246,7 +267,7 @@ int smfs_create(struct inode *dir,struct dentry *dentry,umode_t mode,bool excl)
     }
     //find the first free space
     int i;
-    for(int i=0;i<SMFS_MAX_DIR_MEM;i++)
+    for(i=0;i<SMFS_MAX_DIR_MEM;i++)
     {
         if(parentDirdata->fileList[i].iInode==0) break;
     }
@@ -259,16 +280,82 @@ int smfs_create(struct inode *dir,struct dentry *dentry,umode_t mode,bool excl)
     mark_inode_dirty(dir);
     brelse(bhParent);
     d_instantiate(dentry,inode);//fill in inode information in the entry.
+    printk("smfs_create return");
     return 0;
 }
 int smfs_mkdir(struct inode *dir,struct dentry *dentry,umode_t mode)
 {
     return smfs_create(dir,dentry,mode|S_IFDIR,0);
 }
+/**
+ * @description: remove dir and sort the file list in data block
+ * @param {inode} *dir -parent dir
+ * @param {dentry} *dentry
+ * @return {*}
+ */
+int smfs_rmdir(struct inode *dir,struct dentry *dentry)
+{
+    struct super_block *sb=dir->i_sb;
+    struct smfs_superBlock *smfsSb=sb->s_fs_info;
+    struct inode *inode=d_inode(dentry);
+    struct smfs_inode_kernel *parentDirinode=SMFS_INODE(dir);
+    struct smfs_inode_kernel *smfsInode=SMFS_INODE(inode);
+    struct buffer_head *bh=sb_bread(sb,smfsInode->pDirblockptr);
+    struct buffer_head *parentBh=NULL;
+    struct smfs_dirBlock *smfsDirblock=NULL;
+    struct smfs_dirBlock *smfsParentdirblk=NULL;
+
+    uint32_t inodeIndex=inode->i_ino;
+    printk("smfs_rmdir inode ino: %u",inodeIndex);
+    int i;
+    if(bh==NULL)
+    {
+        return -EIO;
+    }
+    smfsDirblock=(struct smfs_dirBlock *)bh->b_data;
+    if(smfsDirblock->fileList[0].iInode)//check if the dir is empty
+    {
+        brelse(bh);
+        return -ENOTEMPTY;
+    }
+    brelse(bh);
+    parentBh=sb_bread(sb,parentDirinode->pDirblockptr);
+    if(parentBh==NULL)
+    {
+        return -EIO;
+    }
+    smfsParentdirblk=(struct smfs_dirBlock *)parentBh->b_data;
+    unsigned char *dirName=dentry->d_name.name;
+    for(i=0;i<SMFS_MAX_DIR_MEM;i++)
+    {
+        if(strncmp(dirName,smfsParentdirblk->fileList[i].fileName,SMFS_MAX_FILENAME_LEN)==0) 
+        {
+            //inodeIndex=smfsParentdirblk->fileList[i].iInode;
+            printk("smfs_rmdir inode ino in parent dir: %u",smfsParentdirblk->fileList[i].iInode);
+            break;
+        }
+    }
+    int j;
+    for(j=i;j<SMFS_MAX_DIR_MEM-1;j++)//delete the dir and rerange
+    {
+        memcpy(smfsParentdirblk->fileList + j,smfsParentdirblk->fileList + j + 1,sizeof(struct smfs_dirMem));
+    }
+    memset(smfsParentdirblk->fileList + SMFS_MAX_DIR_MEM - 1,0,sizeof(struct smfs_dirMem));
+    mark_buffer_dirty(parentBh);
+    brelse(parentBh);
+    dir->i_mtime=dir->i_atime=current_time(dir);
+    mark_inode_dirty(dir);
+    mark_inode_dirty(inode);
+    printk("snfs_rmdir block ptr %u",smfsInode->pDirblockptr);
+    releaseData(smfsSb,smfsInode->pDirblockptr - 1 - smfsSb->iInodestoreblocks - smfsSb->iInodebitmapblocks - smfsSb->iDatabitmapblocks);//release the bit map
+    releaseInode(smfsSb,inodeIndex);
+    printk("smfs_rmdir return");
+    return 0;
+}
 static const struct inode_operations smfsInodeops = {
     .lookup = smfs_lookup,
     .create = smfs_create,
     .mkdir = smfs_mkdir,
-    .rmdir = ,
-    .rename = ,
+    .rmdir = smfs_rmdir,
+    //.rename = ,
 };
