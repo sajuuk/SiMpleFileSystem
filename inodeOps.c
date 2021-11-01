@@ -1,7 +1,7 @@
 /*
  * @Author:Corvo Attano(391063482@qq.com)
  * @Date: 2021-10-20 10:49:22
- * @LastEditTime: 2021-11-01 10:09:21
+ * @LastEditTime: 2021-11-01 11:39:39
  * @LastEditors: Corvo Attano(fkxzz001@qq.com)
  * @Description: inode_operations implement
  * @FilePath: \SiMpleFileSystem\inode.c

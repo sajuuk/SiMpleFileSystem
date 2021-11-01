@@ -90,3 +90,80 @@ ceil(x*32/8/4096) inode/data bitmap blocks
 ```
 then we can have `x=floor((B-1)K/(K+64+32K))`, where `K=8*4096=2^15`  
 From the equation above, we can design the algorithm of disk formation.  
+```
+start
+    open disk image
+    get disk size
+    if disk size < min size
+        report error
+    fi
+    alloc super block
+    alloc inode block
+    alloc pitmaps
+    write the data block 0
+end
+```
+
+## Super Block Operations
+* put_super
+release the super block in memory
+* alloc_inode
+alloc the inode's memory, return the vfs inode
+* destroy_inode
+release the inode memory
+* write_inode
+copy the inode data from memory to buffer, and call cache synchronization function
+* sync_fs
+copy the super block and bitmaps data from memory to buffer, and call cache synchronization function
+* statfs
+return the file system's information, including magic number, block size,max file name length,etc
+## Inode Operations
+* lookup
+find the dir or file by name, if found append to dentry
+```
+begin
+    check the input name length
+    read current directory's data block from page cache
+    foreach members in directory 
+    do
+        if member's name is what we find
+            get its inode
+            append inode to dentry
+        fi
+    od
+end
+```
+* create
+create dir or file
+```
+begin
+    check name length
+    read parent dir data block
+    check is parent dir's data block has enough space
+    create a new inode and initialize
+    if want to create a dir
+        alloc new data block to the dir
+        clean the data block
+    fi
+    add the new dentry to parent dir data block
+    mark the parent inode, new inode, parent dir's data block dirty
+end
+```
+* mkdir
+create a new dir
+```
+begin
+    call create
+end
+```
+* rmdir
+```
+begin
+    get the dir's data block
+    check is the dir empty
+    get the parent dir's data block
+    find the dir's location in its parent data block
+    
+end
+```
+
