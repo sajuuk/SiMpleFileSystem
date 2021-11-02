@@ -1,16 +1,18 @@
 <!--
- * @Author: Corvo Attano(fkxzz001@qq.com)
+ * @Author: Corvo Attano(391063482@qq.com)
  * @Description: 
  * @LastEditors: Corvo Attano(fkxzz001@qq.com)
 -->
 # SiMpleFileSystem
+姓名: 姜焱夫
+学号：202122080227
 ## Intro
-whole project has 2 parts, the implement of SiMpleFileSystem and a disk formater.  
-SiMpleFileSystem is a file system based on POSIX standard, can be installed as a module in Linux.  
-disk formater can format a disk image, which can be managed by SiMpleFileSystem.  
+whole project including 2 parts, the implement of SiMpleFileSystem and a disk formator.  
+SiMpleFileSystem is a file system based on POSIX standard, can be installed as a kernel module in Linux.  
+disk formator can format disk image, which can be managed by SiMpleFileSystem.  
 ### Current features
 * Dir: create,remove,list
-* file: create,read,write
+* File: create,read,write
 ### How to use
 * install the linux headers
 ```shell
@@ -33,7 +35,8 @@ sudo ./setall.sh
 ```shell
 sudo ./undoall.sh
 ```
-## Data Structure  
+## Implement Details
+### Data Structure  
 | section | size(KiB) |
 | ----|----|
 |super block | 4 |
@@ -78,7 +81,7 @@ below is the layout of each inode
 which means the max size of a file is 96B/4B*4KiB=96KiB.  
 If the inode store a directory, 
 
-## Disk Formation  
+### Disk Formation  
 Assume that the blocks in dist is 'B' the number of inode store blocks in a disk is 'x', which means there are x*128 inodes at most. Then we have this equation below:  
 ```
 1+x+ceil(x*32/8/4096)+ceil(x*32/8/4096)+32*x=B
@@ -91,7 +94,7 @@ ceil(x*32/8/4096) inode/data bitmap blocks
 then we can have `x=floor((B-1)K/(K+64+32K))`, where `K=8*4096=2^15`  
 From the equation above, we can design the algorithm of disk formation.  
 ```
-start
+begin
     open disk image
     get disk size
     if disk size < min size
@@ -104,7 +107,7 @@ start
 end
 ```
 
-## Super Block Operations
+### Super Block Operations
 * put_super
 release the super block in memory
 * alloc_inode
@@ -117,15 +120,14 @@ copy the inode data from memory to buffer, and call cache synchronization functi
 copy the super block and bitmaps data from memory to buffer, and call cache synchronization function
 * statfs
 return the file system's information, including magic number, block size,max file name length,etc
-## Inode Operations
+### Inode Operations
 * lookup
 find the dir or file by name, if found append to dentry
 ```
 begin
     check the input name length
     read current directory's data block from page cache
-    foreach members in directory 
-    do
+    foreach members in directory do
         if member's name is what we find
             get its inode
             append inode to dentry
@@ -157,6 +159,7 @@ begin
 end
 ```
 * rmdir
+remove an empty dir
 ```
 begin
     get the dir's data block
@@ -168,8 +171,9 @@ begin
     set the bitmap unuesd
 end
 ```
-## Bitmap Operations
+### Bitmap Operations
 * _setBitmap
+set a bit in bitmap to 0 or 1 
 ```
 begin
     set byte mask
@@ -177,6 +181,7 @@ begin
 end
 ```
 * _findFirstfree
+find a unuesd bit(marked by 1) in bitmap
 ```
 begin
     foreach byte in bitmap do
@@ -190,7 +195,58 @@ begin
     od
 end      
 ```
-## Dir Operations
-
-
-
+### Dir Operations
+* iterate_shared
+this function return the iteration of dir entries(including '.' and '..') which will be called by 'ls'
+```
+begin
+    check is current inode type DIR
+    check is current dir context position less than max position
+    read the dir's data block
+    emit '.' and '..'
+    foreach dir entries in data block do
+        fill dir context
+    od
+    return dir context
+end
+```
+### File Operations
+the write and read functions are based on page cache.  
+getBlock function will mapping the i-th block to page cache buffer
+* _getBlock
+```
+begin
+    check if the block index is too big
+    if this block has not been allocted and "create" flag is true
+        alloc new data block and mark it on bitmap
+        set file inode's data block pointers
+    fi
+    map the block and buffer
+end
+```
+## Experiments
+### environment
+* Hyper-v virtual machine
+* OS version : Ubuntu 18.04.3 LTS (GNU/Linux 5.4.0-89-generic x86_64)
+### Test results
+* Create a empty directory and a disk image files and mount SiMpleFileSystem on them
+(the setall.sh will install the kernel module, format the disk image and mount file system)
+You can see mkfs report the disk image's formatting results.
+![avatar](screenshot/s1.png)
+Enter instruction```df -T``` we can see the disk image has been mounted successfully as device "loop20", the file system type is "SMFS".
+![avatar](screenshot/s3.png)
+Use ```sudo fdisk -l``` to check the device's information
+![avatar](screenshot/s4.png)
+* Enter the "test" directory, use ```sudo mkdir a```to create a sub dir "a",use ```cd a``` to enter this dir, and use ```sudo mkdir b``` ```sudo mkdir c``` to create the sub directories of "a"
+then enter instruction ```ls``` to check out the two sub dir of "a"
+![avatar](screenshot/s2.png)
+* We can use instruction ```sudo rmdir c``` to remove dir "c",and use ```ls``` to check out the directories after the operation.
+![avatar](screenshot/s5.png)
+to ensure, try ```cd c``` to enter the deleted dir. As we can see, the directory "c" is not exist at all.
+![avatar](screenshot/s6.png)
+* Then use ```sudo vim test.txt``` to create and write a new file
+![avatar](screenshot/s8.png)
+![avatar](screenshot/s7.png)
+saving the file and exit,then use ```vi test.txt``` to see what we write
+![avatar](screenshot/s9.png)
+![avatar](screenshot/s10.png)
